@@ -37,7 +37,8 @@ UPDATE_ENDPOINTS = [
     '/update_rev_growth_rate',
     '/update_ebit_growth',
     '/update_default_spread',
-    '/update_roic'
+    '/update_roic',
+    '/update_input_stats',
 ]
 
 def run_update(endpoint: str, base_url: str = BASE_URL, timeout: int = REQUEST_TIMEOUT) -> Tuple[bool, str, Dict]:

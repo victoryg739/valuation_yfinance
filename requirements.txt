@@ -14,6 +14,8 @@ lxml==5.2.2
 MarkupSafe==2.1.5
 multitasking==0.0.11
 numpy==2.0.0
+openpyxl
+python-dotenv==1.0.1
 pandas==2.2.2
 peewee==3.17.5
 platformdirs==4.2.2

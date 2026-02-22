@@ -159,11 +159,11 @@ roic_sql = """CREATE TABLE roic (
 
 country_risk__premium_sql = """CREATE TABLE country_risk_premium (
     country varchar(255),
-    adj_default_spread varchar(255),
-    equity_risk_premium varchar(255),
-    country_risk_premium varchar(255),
-    corporate_tax_rate varchar(255),
     moody_rating varchar(255),
+    adj_default_spread varchar(255),
+    country_risk_premium varchar(255),
+    equity_risk_premium varchar(255),
+    corporate_tax_rate varchar(255),
     sovereign_cds varchar(255),
     erp_based_on_sovereign_cds varchar(255),
     PRIMARY KEY (country)
