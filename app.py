@@ -455,22 +455,6 @@ def update_roic():
         insert_query="INSERT INTO roic VALUES (%s, %s, %s, %s, %s)"
     )
 
-@app.route('/update_input_stats')
-@handle_errors
-def update_input_stats():
-    from data_helper import scrape_input_stats
-    return update_database_table(
-        table_name='input_stats',
-        data_name='input_stats',
-        clean_function=scrape_input_stats,
-        last_update_function=None,
-        last_update_url=None,
-        last_update_text=None,
-        insert_query="INSERT INTO input_stats VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-        use_time_delta=True,
-        delta_days=30
-    )
-
 @app.route('/update_all')
 @handle_errors
 def update_all():
@@ -487,7 +471,6 @@ def update_all():
         ('ebit_growth', update_ebit_growth),
         ('default_spread', update_default_spread),
         ('roic', update_roic),
-        ('input_stats', update_input_stats),
     ]
 
     results = {}
@@ -550,7 +533,6 @@ def initialize_last_update():
         'effective_tax_rate',
         'default_spread_large_firm',
         'default_spread_small_firm',
-        'input_stats',
         'roic',
         'default_spread'
     ]

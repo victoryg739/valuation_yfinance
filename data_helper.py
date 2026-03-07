@@ -1,6 +1,6 @@
 import pandas as pd
 import requests
-from io import StringIO, BytesIO
+from io import StringIO
 from bs4 import BeautifulSoup
 from datetime import datetime
 import time
@@ -18,6 +18,7 @@ REQUEST_TIMEOUT = 30  # seconds
 # Table scraping configurations
 # Each entry defines how to scrape and validate a specific table from Damodaran's website
 TABLE_CONFIGS = {
+    # DEPRECATED: use scrape_xl_country_equity_risk_premium() from excel_scraper.py
     'country_risk_premium': {
         'url': 'https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/ctryprem.html',
         'table_index': 1,  # Second table on the page
@@ -212,6 +213,7 @@ def scrape_table(config_name):
         return None, str(e)
 
 
+# DEPRECATED: use scrape_xl_synthetic_rating() from excel_scraper.py
 @retry_on_failure()
 def clean_default_spread():
     """
@@ -301,174 +303,5 @@ def get_last_update(url, text_to_find, date_format="%B %Y"):
     return None
 
 
-# Input Stats Excel scraping configuration
-INPUT_STATS_EXCEL_URL = 'https://pages.stern.nyu.edu/~adamodar/pc/fcffsimpleginzu.xlsx'
-INPUT_STATS_SHEET_KEYWORD = 'input stat distribut'
-INPUT_STATS_EXPECTED_COLUMNS = 20
-INPUT_STATS_MIN_ROWS = 40
-
-# Column indices (0-based) whose values are decimals in the Excel (e.g. 0.0593)
-# but represent percentages — multiply by 100 before storing.
-# Ratio columns (sales_to_invested_capital, beta) are left as-is.
-INPUT_STATS_PERCENT_INDICES = frozenset({
-    2, 3, 4,    # revenue_growth_rate Q1/median/Q3
-    5, 6, 7,    # pre_tax_operating_margin Q1/median/Q3
-    11, 12, 13, # cost_of_capital Q1/median/Q3
-    17, 18, 19, # debt_to_capital_ratio Q1/median/Q3
-})
-
-
-def _find_sheet_by_keyword(sheet_names, keyword):
-    """
-    Find a sheet name containing the given keyword (case-insensitive).
-    Handles spelling variations like "Distributioons" vs "Distributions".
-    Uses substring matching first, then falls back to difflib fuzzy matching.
-    """
-    keyword_lower = keyword.lower()
-
-    # Pass 1: exact substring match
-    for name in sheet_names:
-        if keyword_lower in name.lower():
-            return name
-
-    # Pass 2: fuzzy match using SequenceMatcher
-    from difflib import SequenceMatcher
-    best_match = None
-    best_ratio = 0.0
-    for name in sheet_names:
-        ratio = SequenceMatcher(None, keyword_lower, name.lower()).ratio()
-        if ratio > best_ratio:
-            best_ratio = ratio
-            best_match = name
-
-    if best_ratio >= 0.6:
-        logger.info(f"Fuzzy matched sheet '{best_match}' (ratio={best_ratio:.2f}) for keyword '{keyword}'")
-        return best_match
-
-    return None
-
-
-def _find_header_row(df, keyword):
-    """Find the row index containing the keyword in the first column."""
-    for i in range(min(10, len(df))):
-        val = str(df.iloc[i, 0]).strip().lower()
-        if keyword.lower() in val:
-            return i
-    return None
-
-
-def _parse_int(value):
-    """Parse an integer value, handling commas and NaN."""
-    if pd.isna(value):
-        return None
-    try:
-        return int(str(value).replace(',', '').strip())
-    except (ValueError, TypeError):
-        return None
-
-
-def _parse_float(value):
-    """Parse a float value, handling % signs, commas, and NaN."""
-    if pd.isna(value):
-        return None
-    try:
-        s = str(value).replace('%', '').replace(',', '').strip()
-        if s == '' or s.lower() == 'nan':
-            return None
-        return float(s)
-    except (ValueError, TypeError):
-        return None
-
-
-@retry_on_failure()
-def scrape_input_stats():
-    """
-    Scrape input stats from Damodaran's Excel file.
-
-    Downloads fcffsimpleginzu.xlsx, finds the "Input Stat Distributions" sheet
-    using fuzzy name matching, and parses the data into 20-column tuples
-    matching the input_stats database schema.
-
-    Returns:
-        (data_tuples, None) on success
-        (None, error_message) on failure
-    """
-    try:
-        logger.info(f"Fetching input_stats Excel from {INPUT_STATS_EXCEL_URL}")
-        response = fetch_url_with_retry(INPUT_STATS_EXCEL_URL, timeout=60)
-        excel_bytes = BytesIO(response.content)
-
-        # Find the correct sheet using fuzzy matching
-        xl = pd.ExcelFile(excel_bytes, engine='openpyxl')
-        sheet_name = _find_sheet_by_keyword(xl.sheet_names, INPUT_STATS_SHEET_KEYWORD)
-        if sheet_name is None:
-            return None, (
-                f"Could not find sheet matching '{INPUT_STATS_SHEET_KEYWORD}' "
-                f"in sheets: {xl.sheet_names}"
-            )
-
-        # Read the sheet with no header inference
-        df = pd.read_excel(excel_bytes, sheet_name=sheet_name, header=None, engine='openpyxl')
-
-        if df.empty:
-            return None, "Input stats sheet is empty"
-
-        # Find the data start row (row containing "Industry")
-        data_start_row = _find_header_row(df, 'industry')
-        if data_start_row is None:
-            return None, "Could not find 'Industry' header row in input stats sheet"
-
-        # Take data rows after the header
-        df_data = df.iloc[data_start_row + 1:]
-
-        # Validate column count
-        if len(df.columns) < INPUT_STATS_EXPECTED_COLUMNS:
-            return None, (
-                f"Expected at least {INPUT_STATS_EXPECTED_COLUMNS} columns, "
-                f"got {len(df.columns)}. Excel schema may have changed."
-            )
-        df_data = df_data.iloc[:, :INPUT_STATS_EXPECTED_COLUMNS]
-
-        # Drop rows where the industry (first column) is NaN/empty
-        df_data = df_data.dropna(subset=[df_data.columns[0]])
-        df_data = df_data[df_data.iloc[:, 0].astype(str).str.strip() != '']
-
-        # Parse each row, deduplicating by industry name (keep first occurrence).
-        # The source Excel has trailing duplicate rows that are a data artifact.
-        data_tuples = []
-        seen_industries = set()
-        skipped = 0
-        for _, row in df_data.iterrows():
-            cleaned_row = []
-            for i, value in enumerate(row):
-                if i == 0:
-                    cleaned_row.append(clean_string(str(value).strip()))
-                elif i == 1:
-                    cleaned_row.append(_parse_int(value))
-                elif i in INPUT_STATS_PERCENT_INDICES:
-                    val = _parse_float(value)
-                    cleaned_row.append(round(val * 100, 6) if val is not None else None)
-                else:
-                    cleaned_row.append(_parse_float(value))
-            industry_name = cleaned_row[0]
-            if industry_name in seen_industries:
-                skipped += 1
-                logger.warning(f"Skipping duplicate industry row: '{industry_name}'")
-                continue
-            seen_industries.add(industry_name)
-            data_tuples.append(tuple(cleaned_row))
-
-        if skipped:
-            logger.info(f"Deduplicated {skipped} duplicate industry rows from input_stats")
-
-        # Sanity check on row count
-        if len(data_tuples) < INPUT_STATS_MIN_ROWS:
-            return None, (
-                f"Only {len(data_tuples)} rows scraped for input_stats, "
-                f"expected at least {INPUT_STATS_MIN_ROWS}. Data may be incomplete."
-            )
-
-        return data_tuples, None
-
-    except Exception as e:
-        return None, str(e)
+# NOTE: Excel scraping for fcffsimpleginzu.xlsx has been moved to excel_scraper.py.
+# See scrape_xl_input_stats(), scrape_xl_country_equity_risk_premium(), etc.

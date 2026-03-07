@@ -105,6 +105,7 @@ default_spread_small_firm_sql = """CREATE TABLE default_spread_small_firm (
     PRIMARY KEY (rating)
     )"""
 
+# DEPRECATED: input_stats is superseded by xl_input_stats (scraped via excel_scraper.py)
 input_stats_sql = """
 CREATE TABLE input_stats(
  industry TEXT PRIMARY KEY,
@@ -129,6 +130,139 @@ CREATE TABLE input_stats(
     debt_to_capital_ratio_third_quartile REAL
 )
 """
+
+
+# ── Excel-sourced tables (all prefixed xl_) ───────────────────────────────────
+# Populated by excel_scraper.py — run standalone: python excel_scraper.py [--write-db]
+
+xl_country_equity_risk_premium_sql = """
+CREATE TABLE xl_country_equity_risk_premium (
+    country TEXT PRIMARY KEY,
+    moody_rating TEXT,
+    adj_default_spread REAL,
+    equity_risk_premium REAL,
+    country_risk_premium REAL,
+    corporate_tax_rate REAL,
+    mature_market_erp REAL
+)"""
+
+xl_industry_averages_us_sql = """
+CREATE TABLE xl_industry_averages_us (
+    industry TEXT PRIMARY KEY,
+    num_firms INTEGER,
+    revenue_growth_rate_5y REAL,
+    pretax_operating_margin REAL,
+    aftertax_roc REAL,
+    effective_tax_rate REAL,
+    unlevered_beta REAL,
+    levered_beta REAL,
+    cost_of_equity REAL,
+    std_dev_stock_price REAL,
+    pretax_cost_of_debt REAL,
+    market_debt_to_capital REAL,
+    cost_of_capital REAL,
+    sales_to_capital REAL,
+    ev_to_sales REAL,
+    ev_to_ebitda REAL,
+    ev_to_ebit REAL,
+    price_to_book REAL,
+    trailing_pe REAL,
+    noncash_wc_pct_revenue REAL,
+    capex_pct_revenue REAL,
+    net_capex_pct_revenue REAL,
+    reinvestment_rate REAL,
+    roe REAL,
+    dividend_payout_ratio REAL,
+    equity_reinvestment_rate REAL,
+    pretax_operating_margin_adj REAL
+)"""
+
+xl_industry_averages_global_sql = """
+CREATE TABLE xl_industry_averages_global (
+    industry TEXT PRIMARY KEY,
+    num_firms INTEGER,
+    revenue_growth_rate_5y REAL,
+    pretax_operating_margin REAL,
+    aftertax_roc REAL,
+    effective_tax_rate REAL,
+    unlevered_beta REAL,
+    levered_beta REAL,
+    cost_of_equity REAL,
+    std_dev_stock_price REAL,
+    pretax_cost_of_debt REAL,
+    market_debt_to_capital REAL,
+    cost_of_capital REAL,
+    sales_to_capital REAL,
+    ev_to_sales REAL,
+    ev_to_ebitda REAL,
+    ev_to_ebit REAL,
+    price_to_book REAL,
+    trailing_pe REAL,
+    noncash_wc_pct_revenue REAL,
+    capex_pct_revenue REAL,
+    net_capex_pct_revenue REAL,
+    reinvestment_rate REAL,
+    roe REAL,
+    dividend_payout_ratio REAL,
+    equity_reinvestment_rate REAL,
+    pretax_operating_margin_adj REAL
+)"""
+
+xl_input_stats_sql = """
+CREATE TABLE xl_input_stats (
+    industry TEXT PRIMARY KEY,
+    count INTEGER,
+    revenue_growth_rate_first_quartile REAL,
+    revenue_growth_rate_median REAL,
+    revenue_growth_rate_third_quartile REAL,
+    pre_tax_operating_margin_first_quartile REAL,
+    pre_tax_operating_margin_median REAL,
+    pre_tax_operating_margin_third_quartile REAL,
+    sales_to_invested_capital_first_quartile REAL,
+    sales_to_invested_capital_median REAL,
+    sales_to_invested_capital_third_quartile REAL,
+    cost_of_capital_first_quartile REAL,
+    cost_of_capital_median REAL,
+    cost_of_capital_third_quartile REAL,
+    beta_first_quartile REAL,
+    beta_median REAL,
+    beta_third_quartile REAL,
+    debt_to_capital_ratio_first_quartile REAL,
+    debt_to_capital_ratio_median REAL,
+    debt_to_capital_ratio_third_quartile REAL
+)"""
+
+xl_rd_amortizable_lives_sql = """
+CREATE TABLE xl_rd_amortizable_lives (
+    business_type TEXT PRIMARY KEY,
+    amortizable_life_years REAL
+)"""
+
+xl_synthetic_rating_large_firm_sql = """
+CREATE TABLE xl_synthetic_rating_large_firm (
+    min_coverage TEXT,
+    max_coverage TEXT,
+    rating TEXT PRIMARY KEY,
+    spread TEXT
+)"""
+
+xl_synthetic_rating_small_firm_sql = """
+CREATE TABLE xl_synthetic_rating_small_firm (
+    min_coverage TEXT,
+    max_coverage TEXT,
+    rating TEXT PRIMARY KEY,
+    spread TEXT
+)"""
+
+xl_cost_of_capital_histogram_sql = """
+CREATE TABLE xl_cost_of_capital_histogram (
+    region TEXT PRIMARY KEY,
+    first_decile REAL,
+    first_quartile REAL,
+    median REAL,
+    third_quartile REAL,
+    ninth_decile REAL
+)"""
 
 
 valuation_sql = """
